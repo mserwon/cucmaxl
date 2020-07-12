@@ -12,9 +12,16 @@ import numpy as np
 
 
 def report_diff(x):
-    """Function to use with groupby.apply to highlihgt value changes."""
+    """Function to use with groupby.apply to highlight value changes."""
     return x[0] if x[0] == x[1] or pd.isna(x).all() else f'{x[0]} ---> {x[1]}'
 
+def highlight_diff(x):
+    """Function to use with style.applymap to highlight value changes."""
+    if isinstance(x,str):
+        if "--->" in x:
+            return 'background-color: orange'
+            #return 'background-color: %s' % 'orange'
+    return ''
 
 def strip(x):
     """Function to use with applymap to strip whitespaces in a dataframe."""
@@ -45,8 +52,8 @@ def diff_pd(old_df, new_df, idx_col):
         removed_keys = np.setdiff1d(old_keys, new_keys)
         added_keys = np.setdiff1d(new_keys, old_keys)
     out_data = {
-        'removed': old_df.loc[removed_keys],
-        'added': new_df.loc[added_keys]
+        'removed row': old_df.loc[removed_keys],
+        'added row': new_df.loc[added_keys]
     }
     # focusing on common data of both dataframes
     common_keys = np.intersect1d(old_keys, new_keys, assume_unique=True)
@@ -74,7 +81,10 @@ def diff_pd(old_df, new_df, idx_col):
     # using report_diff to merge the changes in a single cell with "-->"
     df_changed = df_all_changes.groupby(level=0, axis=1).apply(
         lambda frame: frame.apply(report_diff, axis=1))
-    out_data['changed'] = df_changed
+
+    styleddf = (df_changed.style.applymap(highlight_diff))
+    #out_data['changed row'] = df_changed
+    out_data['changed row'] = styleddf
 
     # get the added and removed columns
     old_col = list(old_df.columns)
@@ -111,7 +121,7 @@ def compare_excel(
     diff = diff_pd(old_df, new_df, index_col_name)
     with pd.ExcelWriter(out_path) as writer:
         for sname, data in diff.items():
-            data.to_excel(writer, sheet_name=sname)
+            data.to_excel(writer, engine='openpyxl',sheet_name=sname)
     print(f"Differences saved in {out_path}")
 
 def build_parser():
